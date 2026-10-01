@@ -2,18 +2,20 @@
 #include "TaskExecutionEngine.h"
 #include <iostream>
 #include <algorithm>
-#include <thread>
-#include <chrono>
+#include <vector>
 
 struct Job {
     Task task;
     int releaseTime;
     int absoluteDeadline;
     int remainingTime;
+    bool isDispatched;
+    int actualDispatchTime;
 };
 
 void EDFScheduler::schedule(int durationMs) {
     std::cout << "\n--- Running Earliest Deadline First Scheduler (" << durationMs << " ms) [SIMULATION MODE] ---\n";
+    analyzer->clear("EDF");
     
     std::vector<Task> tasks = taskManager->getTasks();
     if (tasks.empty()) {
@@ -21,49 +23,66 @@ void EDFScheduler::schedule(int durationMs) {
         return;
     }
 
-    std::vector<Job> activeJobs;
-    int currentTime = 0;
+    std::vector<Job> readyQueue;
     TaskExecutionEngine engine;
 
-    while (currentTime < durationMs) {
+    for (int t = 0; t < durationMs; ++t) {
+        // Release tasks at their periods
         for (const auto& task : tasks) {
-            if (currentTime % task.getPeriod() == 0) {
-                Job newJob = {task, currentTime, currentTime + task.getDeadline(), task.getExecutionTime()};
-                activeJobs.push_back(newJob);
+            if (t % task.getPeriod() == 0) {
+                readyQueue.push_back({task, t, t + task.getDeadline(), task.getExecutionTime(), false, -1});
             }
         }
 
-        if (activeJobs.empty()) {
-            currentTime++;
-            continue;
+        // Clean up finished jobs
+        for (auto it = readyQueue.begin(); it != readyQueue.end(); ) {
+            if (it->remainingTime <= 0) {
+                it = readyQueue.erase(it);
+            } else {
+                ++it;
+            }
         }
 
-        std::sort(activeJobs.begin(), activeJobs.end(), [](const Job& a, const Job& b) {
+        if (readyQueue.empty()) continue;
+
+        // EDF Priority: Earliest Absolute Deadline First
+        std::sort(readyQueue.begin(), readyQueue.end(), [](const Job& a, const Job& b) {
+            if (a.absoluteDeadline == b.absoluteDeadline) {
+                if (a.releaseTime == b.releaseTime) {
+                    return a.task.getId() < b.task.getId();
+                }
+                return a.releaseTime < b.releaseTime;
+            }
             return a.absoluteDeadline < b.absoluteDeadline;
         });
 
-        Job& currentJob = activeJobs.front();
-        std::cout << "[" << currentTime << "ms] Dispatching EDF Task: " << currentJob.task.getName() << " (Deadline: " << currentJob.absoluteDeadline << ")\n";
-        
-        auto start = std::chrono::high_resolution_clock::now();
-        
-        // Dispatch to worker thread using condition_variable
-        engine.executeTask(&currentJob.task);
-        
-        // Wait for execution completion
-        std::this_thread::sleep_for(std::chrono::milliseconds(currentJob.remainingTime));
-        
-        auto end = std::chrono::high_resolution_clock::now();
-        
-        long long actualExecUs = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        long long expectedExecUs = currentJob.remainingTime * 1000LL;
-        long long latency = actualExecUs - expectedExecUs;
-        
-        bool missedDeadline = (currentTime + currentJob.remainingTime) > currentJob.absoluteDeadline;
-        analyzer->recordMeasurement(currentJob.task.getName(), expectedExecUs, actualExecUs, latency, missedDeadline);
+        Job& runningJob = readyQueue.front();
 
-        currentTime += currentJob.remainingTime;
-        activeJobs.erase(activeJobs.begin());
+        if (!runningJob.isDispatched) {
+            runningJob.isDispatched = true;
+            runningJob.actualDispatchTime = t;
+            long long latencyMs = t - runningJob.releaseTime;
+            
+            std::cout << "[" << t << "ms] " << runningJob.task.getName() << "\n";
+            std::cout << "Release: " << runningJob.releaseTime << "ms\n";
+            std::cout << "Dispatch: " << t << "ms\n";
+            std::cout << "Latency: " << latencyMs << "ms\n";
+            std::cout << "Deadline: " << runningJob.absoluteDeadline << "ms\n\n";
+            
+            // Dispatch to real worker thread to demonstrate C++ multithreading
+            Task* tPtr = taskManager->getTaskById(runningJob.task.getId());
+            if (tPtr) engine.executeTask(tPtr);
+        }
+
+        runningJob.remainingTime--;
+        
+        if (runningJob.remainingTime == 0) {
+            int completionTime = t + 1;
+            long long latencyUs = (runningJob.actualDispatchTime - runningJob.releaseTime) * 1000LL;
+            bool missed = completionTime > runningJob.absoluteDeadline;
+            
+            analyzer->recordMeasurement(completionTime * 1000LL, runningJob.task.getName(), runningJob.releaseTime * 1000LL, runningJob.actualDispatchTime * 1000LL, latencyUs, missed);
+        }
     }
     
     engine.stop();

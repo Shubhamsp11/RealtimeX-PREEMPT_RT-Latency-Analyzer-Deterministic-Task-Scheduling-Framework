@@ -3,22 +3,20 @@
 #include <iostream>
 
 void Logger::saveResults(const std::vector<Measurement>& measurements, const std::string& filename) {
-    std::ofstream outFile(filename, std::ios::app);
+    std::ofstream outFile(filename, std::ios::trunc);
     if (!outFile) {
         std::cerr << "Error opening file " << filename << " for writing.\n";
         return;
     }
     
-    outFile << "Timestamp,TaskName,ExpectedUs,ActualUs,LatencyUs,MissedDeadline\n";
-    long long timestamp = 1000;
+    outFile << "SimulatedTimeUs,TaskName,ExpectedReleaseUs,ActualDispatchUs,LatencyUs,MissedDeadline\n";
     for (const auto& m : measurements) {
-        outFile << timestamp << ","
+        outFile << m.simulatedTimeUs << ","
                 << m.taskName << ","
-                << m.expectedTimeUs << ","
-                << m.actualTimeUs << ","
+                << m.expectedReleaseUs << ","
+                << m.actualDispatchUs << ","
                 << m.latencyUs << ","
                 << (m.missedDeadline ? "1" : "0") << "\n";
-        timestamp += 1000;
     }
     outFile.close();
     std::cout << "Results saved to " << filename << "\n";

@@ -1,11 +1,12 @@
 #include "TaskManager.h"
 #include <iostream>
 #include <iomanip>
+#include <stdexcept>
 
 void TaskManager::addTask(const Task& task) {
     std::lock_guard<std::mutex> lock(tmMutex);
     tasks.push_back(task);
-    taskMap[task.getId()] = task;
+    taskMap.insert_or_assign(task.getId(), task);
 }
 
 std::vector<Task> TaskManager::getTasks() {
@@ -39,8 +40,9 @@ void TaskManager::displayTasks() {
 
 Task* TaskManager::getTaskById(int id) {
     std::lock_guard<std::mutex> lock(tmMutex);
-    if (taskMap.find(id) != taskMap.end()) {
-        return &taskMap[id];
+    auto it = taskMap.find(id);
+    if (it != taskMap.end()) {
+        return &(it->second);
     }
-    return nullptr;
+    throw std::invalid_argument("Task ID not found");
 }

@@ -6,9 +6,10 @@
 #include <mutex>
 
 struct Measurement {
+    long long simulatedTimeUs;
     std::string taskName;
-    long long expectedTimeUs;
-    long long actualTimeUs;
+    long long expectedReleaseUs;
+    long long actualDispatchUs;
     long long latencyUs;
     bool missedDeadline;
 };
@@ -17,9 +18,12 @@ class LatencyAnalyzer {
 private:
     std::vector<Measurement> measurements;
     std::mutex laMutex;
+    std::string currentSchedulerName;
 
 public:
-    void recordMeasurement(const std::string& taskName, long long expectedTime, long long actualTime, long long latency, bool missedDeadline);
+    LatencyAnalyzer();
+    void clear(const std::string& schedulerName);
+    void recordMeasurement(long long simulatedTimeUs, const std::string& taskName, long long expectedReleaseUs, long long actualDispatchUs, long long latencyUs, bool missedDeadline);
     void printStatistics();
     std::vector<Measurement> getMeasurements();
 };
