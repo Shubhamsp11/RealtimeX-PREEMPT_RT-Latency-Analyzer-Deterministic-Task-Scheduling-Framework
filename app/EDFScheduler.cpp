@@ -1,4 +1,5 @@
 #include "EDFScheduler.h"
+#include "TaskExecutionEngine.h"
 #include <iostream>
 #include <algorithm>
 #include <thread>
@@ -22,6 +23,7 @@ void EDFScheduler::schedule(int durationMs) {
 
     std::vector<Job> activeJobs;
     int currentTime = 0;
+    TaskExecutionEngine engine;
 
     while (currentTime < durationMs) {
         for (const auto& task : tasks) {
@@ -41,10 +43,16 @@ void EDFScheduler::schedule(int durationMs) {
         });
 
         Job& currentJob = activeJobs.front();
-        std::cout << "[" << currentTime << "ms] Executing EDF Task: " << currentJob.task.getName() << " (Deadline: " << currentJob.absoluteDeadline << ")\n";
+        std::cout << "[" << currentTime << "ms] Dispatching EDF Task: " << currentJob.task.getName() << " (Deadline: " << currentJob.absoluteDeadline << ")\n";
         
         auto start = std::chrono::high_resolution_clock::now();
+        
+        // Dispatch to worker thread using condition_variable
+        engine.executeTask(&currentJob.task);
+        
+        // Wait for execution completion
         std::this_thread::sleep_for(std::chrono::milliseconds(currentJob.remainingTime));
+        
         auto end = std::chrono::high_resolution_clock::now();
         
         long long actualExecUs = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
@@ -57,5 +65,7 @@ void EDFScheduler::schedule(int durationMs) {
         currentTime += currentJob.remainingTime;
         activeJobs.erase(activeJobs.begin());
     }
+    
+    engine.stop();
     std::cout << "EDF Scheduler finished.\n";
 }
