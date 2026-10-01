@@ -7,6 +7,7 @@
 #include "Logger.h"
 #include "IPCManager.h"
 #include "SignalHandler.h"
+#include "ProcessManager.h"
 
 using namespace std;
 
@@ -29,7 +30,8 @@ void showMenu() {
     cout << "5. View Results / Jitter Analysis\n";
     cout << "6. Save Results to Log\n";
     cout << "7. System Information / IPC Test\n";
-    cout << "8. Exit\n";
+    cout << "8. Run Linux Process Test (fork/exec)\n";
+    cout << "9. Exit\n";
     cout << "Select option: ";
 }
 
@@ -46,7 +48,7 @@ int main() {
     tm.addTask(Task(3, "LoggerTask", 500, 50, 500, 3));
 
     int choice = 0;
-    while (choice != 8) {
+    while (choice != 9) {
         showMenu();
         if (!(cin >> choice)) {
             cin.clear();
@@ -96,6 +98,9 @@ int main() {
                 }
                 break;
             case 8:
+                ProcessManager::executeWithProcess();
+                break;
+            case 9:
                 cout << "Exiting RealtimeX.\n";
                 break;
             default:
