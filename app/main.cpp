@@ -15,11 +15,37 @@
 
 using namespace std;
 
+#include <cstdio>
+#include <cstring>
+
+bool isPreemptRTEnabled() {
+  bool is_rt = false;
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+  FILE* pipe = popen("zcat /proc/config.gz 2>/dev/null", "r");
+  if (pipe) {
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+      if (strstr(buffer, "CONFIG_PREEMPT_RT=y") != nullptr) {
+        is_rt = true;
+        break;
+      }
+    }
+    pclose(pipe);
+  }
+#endif
+  return is_rt;
+}
+
 void checkPreemptRT() {
   cout << "Checking for PREEMPT_RT environment...\n";
-  cout << "WARNING:\n";
-  cout << "PREEMPT_RT environment not detected.\n";
-  cout << "RealtimeX will run in simulation/non-RT mode.\n\n";
+  if (isPreemptRTEnabled()) {
+    cout << "PREEMPT_RT environment detected.\n";
+    cout << "RealtimeX will run with PREEMPT_RT enabled.\n\n";
+  } else {
+    cout << "WARNING:\n";
+    cout << "PREEMPT_RT environment not detected.\n";
+    cout << "RealtimeX will run in simulation/non-RT mode.\n\n";
+  }
 }
 
 void showMenu() {
@@ -112,7 +138,11 @@ int main() {
 #else
       cout << "OS Environment: Windows (Native) / Unknown\n";
 #endif
-      cout << "PREEMPT_RT: NOT DETECTED\n";
+      if (isPreemptRTEnabled()) {
+        cout << "PREEMPT_RT: DETECTED\n";
+      } else {
+        cout << "PREEMPT_RT: NOT DETECTED\n";
+      }
       if (ipc.initSharedMemory()) {
         ipc.writeSharedMessage("IPC test successful - Shared Memory Working!");
         cout << "IPC Read: " << ipc.readSharedMessage() << "\n";
