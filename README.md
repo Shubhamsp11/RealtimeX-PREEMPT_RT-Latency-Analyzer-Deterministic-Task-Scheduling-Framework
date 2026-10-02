@@ -190,8 +190,8 @@ make
 
 ## Author
 
-**Shubham Saurav Prajapati**
-**B.Tech Computer Science & Engineering**
+**Shubham Saurav Prajapati**<br>
+**B.Tech Computer Science & Engineering**<br>
 **SOA University**
 
 ## License
