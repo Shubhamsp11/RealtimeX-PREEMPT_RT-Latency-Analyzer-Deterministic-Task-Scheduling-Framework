@@ -187,3 +187,14 @@ make clean
 make
 ./realtimex
 ```
+
+## Author
+
+**Shubham Saurav Prajapati**
+**B.Tech Computer Science & Engineering**
+**SOA University**
+
+## License
+This project is developed for educational and academic purposes.
+
+
